@@ -68,23 +68,33 @@ func makeEndpoints(s Service) []*endpoint {
 // FindPersons ...
 func FindPersons(s Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"persons": s.FindAll(),
-		})
+		persons, err := s.FindAll()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"Message": "No se pudo procesar su consulta",
+			})
+		} else {
+			c.JSON(http.StatusOK, gin.H{
+				"persons": persons,
+			})
+		}
 	}
 }
 
 // FindPersonByID ...
 func FindPersonByID(s Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		id, err := strconv.Atoi(c.Param("id"))
+		id, _ := strconv.Atoi(c.Param("id"))
+		res, err := s.FindByID(id)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			c.JSON(http.StatusBadRequest, gin.H{
+				"person": err,
+			})
+		} else {
+			c.JSON(http.StatusOK, gin.H{
+				"person": res,
+			})
 		}
-		c.JSON(http.StatusOK, gin.H{
-			"person": s.FindByID(id),
-		})
 	}
 }
 
@@ -92,37 +102,44 @@ func FindPersonByID(s Service) gin.HandlerFunc {
 func InsertPerson(s Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var Person Person
-		data, err := ioutil.ReadAll(c.Request.Body)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+		data, _ := ioutil.ReadAll(c.Request.Body)
+		if err := json.Unmarshal(data, &Person); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"Message": err,
+			})
+		} else {
+			res, err := s.AddPerson(Person)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"Message": "La persona no pudo ser agregada a la tabla",
+				})
+			} else {
+				c.JSON(http.StatusOK, gin.H{
+					"Message": "Persona agregada correctamente",
+					"person":  res,
+				})
+			}
 		}
-		if err = json.Unmarshal(data, &Person); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		err = s.AddPerson(Person)
-		if err != nil {
-			fmt.Println(err.Error())
-		}
+
 	}
 }
 
 // DeletePerson ...
 func DeletePerson(s Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		id, err := strconv.Atoi(c.Param("id"))
+		id, _ := strconv.Atoi(c.Param("id"))
+
+		res, err := s.DeletePerson(id)
+		fmt.Println("Error en deleteTrasport: ", err)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		err = s.DeletePerson(id)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			c.JSON(http.StatusBadRequest, gin.H{
+				"Message": "No se pudo eliminar a la persona seleccionada",
+				"ID":      res,
+			})
 		} else {
 			c.JSON(http.StatusOK, gin.H{
-				"Message": "Deleted",
+				"Message": "La persona ha sido eliminada",
+				"ID":      res,
 			})
 		}
 	}
@@ -146,13 +163,16 @@ func UpdatePerson(s Service) gin.HandlerFunc {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		err = s.UpdatePerson(id, Person)
+		res, err := s.UpdatePerson(id, Person)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			c.JSON(http.StatusBadRequest, gin.H{
+				"Message": "No se pudo actualizar la persona seleccionada",
+				"ID":      res,
+			})
 		} else {
 			c.JSON(http.StatusOK, gin.H{
-				"Message": "Modified",
+				"Message": "La persona pudo ser modificada",
+				"ID":      res,
 			})
 		}
 	}

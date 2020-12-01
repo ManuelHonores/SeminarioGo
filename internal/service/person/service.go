@@ -2,6 +2,7 @@ package person
 
 import (
 	"SeminarioGo/internal/config"
+	"fmt"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -16,11 +17,11 @@ type Person struct {
 
 // Service ...
 type Service interface {
-	AddPerson(Person) error
-	FindAll() []*Person
-	UpdatePerson(int, Person) error
-	DeletePerson(int) error
-	FindByID(int) *Person
+	AddPerson(Person) (*Person, error)
+	FindAll() ([]*Person, error)
+	UpdatePerson(int, Person) (int, error)
+	DeletePerson(int) (int, error)
+	FindByID(int) (*Person, error)
 }
 
 type service struct {
@@ -33,58 +34,66 @@ func New(db *sqlx.DB, c *config.Config) (Service, error) {
 	return service{db, c}, nil
 }
 
-func (s service) FindAll() []*Person {
+func (s service) FindAll() ([]*Person, error) {
 	var list []*Person
 	if err := s.db.Select(&list, "SELECT * FROM persons"); err != nil {
-		panic(err)
+		return nil, err
 	}
-	return list
+	return list, nil
 }
 
-func (s service) AddPerson(p Person) error {
+func (s service) AddPerson(p Person) (*Person, error) {
+	var pers Person
+	pers.Name = p.Name
+	pers.Lastname = p.Lastname
+	pers.Age = p.Age
+	fmt.Println(pers)
 	query := "INSERT INTO persons (name, lastname, age) VALUES (?,?,?)"
 	statementInsert, err := s.db.Prepare(query)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	_, err = statementInsert.Exec(p.Name, p.Lastname, p.Age)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return &pers, nil
 }
 
-func (s service) FindByID(ID int) *Person {
+func (s service) FindByID(ID int) (*Person, error) {
 	var Person Person
 	query := "SELECT * FROM persons WHERE ID = ?"
 	if err := s.db.Get(&Person, query, ID); err != nil { //Get es analogo a QueryRow
-		return nil
+		return nil, err
 	}
-	return &Person
+	return &Person, nil
 }
 
-func (s service) DeletePerson(ID int) error {
+func (s service) DeletePerson(ID int) (int, error) {
 	query := "DELETE FROM persons WHERE ID = ?"
 	statementDelete, err := s.db.Prepare(query)
 	if err != nil {
-		return err
+		return -1, err
 	}
 	_, err = statementDelete.Exec(ID)
+	fmt.Println("Error en delete: ", err)
 	if err != nil {
-		return err
+		return -1, err
 	}
-	return nil
+	return ID, nil
 }
 
-func (s service) UpdatePerson(ID int, p Person) error {
+func (s service) UpdatePerson(ID int, p Person) (int, error) {
 	query := "UPDATE persons SET name = ?, lastname = ?, age = ? WHERE id = :id"
 	statementUpdate, err := s.db.Prepare(query)
 	if err != nil {
-		return err
+		return -1, err
 	}
-	_, err = statementUpdate.Exec(p.Name, p.Lastname, p.Age, ID)
+	res, err := statementUpdate.Exec(p.Name, p.Lastname, p.Age, ID)
+	fmt.Println(res)
+	fmt.Println(err)
 	if err != nil {
-		return err
+		return -1, err
 	}
-	return nil
+	return ID, err
 }

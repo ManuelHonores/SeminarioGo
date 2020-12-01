@@ -56,9 +56,3 @@ func createSchema(db *sqlx.DB) error {
 	fmt.Println("Llego")
 	return nil
 }
-
-/* "CREATE TABLE IF NOT EXISTS 'persons' ( " +
-"id integer PRIMARY KEY AUTOINCREMENT, " +
-"name varchar(50) NOT NULL, " +
-"lastname varchar(50) NOT NULL, " +
-"age integer NOT NULL)" */
